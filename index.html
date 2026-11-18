@@ -45,8 +45,8 @@
   </div>
 
   <script>
-    const SUPABASE_URL = "https://SEU_PROJETO.supabase.co";
-    const SUPABASE_KEY = "SUA_SUPABASE_ANON_KEY";
+    const SUPABASE_URL = "https://mnnjdxtqurcamyjbxbnz.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_298sbZg8l7mnS1wub9oyqg_GIhTwHXb";
     let somAtivo = false;
 
     function toggleSom() {
@@ -85,13 +85,13 @@
           : "px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-400";
 
         document.getElementById("last-update").textContent = `Atualizado: ${d.updated_at}`;
-        document.getElementById("paxg-val").textContent = Number(d.paxg_ratio).toFixed(4);
-        document.getElementById("auag-val").textContent = Number(d.au_ag_ratio).toFixed(2);
+        document.getElementById("paxg-val").textContent = Number(d.paxg_ratio || 0).toFixed(4);
+        document.getElementById("auag-val").textContent = Number(d.au_ag_ratio || 0).toFixed(2);
 
         const ativos = [
-          { nome: "XAUUSD (Ouro)", z: d.xau_z, score: d.xau_score, sinal: d.xau_sinal },
-          { nome: "BTCUSD (Bitcoin)", z: d.btc_z, score: d.btc_score, sinal: d.btc_sinal },
-          { nome: "XAGUSD (Prata)", z: d.xag_z, score: d.xag_score, sinal: d.xag_sinal }
+          { nome: "XAUUSD (Ouro)", z: d.xau_z || 0, score: d.xau_score || 0, sinal: d.xau_sinal || "NEUTRO" },
+          { nome: "BTCUSD (Bitcoin)", z: d.btc_z || 0, score: d.btc_score || 0, sinal: d.btc_sinal || "NEUTRO" },
+          { nome: "XAGUSD (Prata)", z: d.xag_z || 0, score: d.xag_score || 0, sinal: d.xag_sinal || "NEUTRO" }
         ];
 
         let gatilhoAtivo = false;
