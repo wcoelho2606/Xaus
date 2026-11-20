@@ -3,40 +3,47 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Radar Quant XAUS v4 - Painel Externo</title>
+  <title>Radar Quant XAUS v4.2 - Painel Externo</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen p-6 font-sans">
-  <div class="max-w-5xl mx-auto">
+  <div class="max-w-6xl mx-auto">
     <!-- Cabeçalho -->
     <div class="flex flex-wrap justify-between items-center border-b border-slate-800 pb-4 mb-6">
       <div>
-        <h1 class="text-2xl font-bold tracking-tight text-amber-400">RADAR QUANTITATIVO XAUS v4</h1>
-        <p class="text-sm text-slate-400">Monitoramento Externo em Tempo Real • Gatilho Score ≥ 75</p>
+        <h1 class="text-2xl font-bold tracking-tight text-amber-400">RADAR QUANTITATIVO XAUS v4.2</h1>
+        <p class="text-sm text-slate-400">Dupla Arbitragem (PAXG + XAUT) • Gatilho Score ≥ 75</p>
       </div>
-      <div class="text-right">
-        <span id="api-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300">
-          CONECTANDO...
-        </span>
-        <p id="last-update" class="text-xs text-slate-500 mt-1">--:--:--</p>
+      <div class="flex items-center gap-4">
+        <button id="btn-som" onclick="toggleSom()" class="py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold border border-slate-700">
+          ATIVAR SOM DE GATILHO
+        </button>
+        <div class="text-right">
+          <span id="api-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300">
+            CONECTANDO...
+          </span>
+          <p id="last-update" class="text-xs text-slate-500 mt-1">--:--:--</p>
+        </div>
       </div>
     </div>
 
-    <!-- Métricas Macro -->
-    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+    <!-- Métricas Institucionais -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
       <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
         <span class="text-xs text-slate-400 uppercase">PAXG / Gold Ratio</span>
-        <p id="paxg-val" class="text-xl font-mono font-bold mt-1">--</p>
+        <p id="paxg-val" class="text-xl font-mono font-bold mt-1 text-amber-300">--</p>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <span class="text-xs text-slate-400 uppercase">XAUT / Gold Ratio</span>
+        <p id="xaut-val" class="text-xl font-mono font-bold mt-1 text-amber-300">--</p>
       </div>
       <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
         <span class="text-xs text-slate-400 uppercase">Razão Ouro / Prata</span>
         <p id="auag-val" class="text-xl font-mono font-bold mt-1">--</p>
       </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 col-span-2 md:col-span-1">
-        <span class="text-xs text-slate-400 uppercase">Alerta Sonoro Web</span>
-        <button id="btn-som" onclick="toggleSom()" class="mt-1 w-full py-1.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold">
-          ATIVAR SOM DE GATILHO
-        </button>
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <span class="text-xs text-slate-400 uppercase">1 BTC em Ouro</span>
+        <p id="btcgold-val" class="text-xl font-mono font-bold mt-1 text-sky-400">-- oz</p>
       </div>
     </div>
 
@@ -54,8 +61,8 @@
       const btn = document.getElementById("btn-som");
       btn.textContent = somAtivo ? "SOM ATIVADO (ON)" : "ATIVAR SOM DE GATILHO";
       btn.className = somAtivo
-        ? "mt-1 w-full py-1.5 px-3 rounded-lg bg-emerald-600 text-white text-xs font-semibold"
-        : "mt-1 w-full py-1.5 px-3 rounded-lg bg-slate-800 text-xs font-semibold";
+        ? "py-2 px-4 rounded-xl bg-emerald-600 text-white text-xs font-semibold"
+        : "py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold border border-slate-700";
     }
 
     function tocarBipe() {
@@ -86,7 +93,9 @@
 
         document.getElementById("last-update").textContent = `Atualizado: ${d.updated_at}`;
         document.getElementById("paxg-val").textContent = Number(d.paxg_ratio || 0).toFixed(4);
+        document.getElementById("xaut-val").textContent = Number(d.xaut_ratio || 0).toFixed(4);
         document.getElementById("auag-val").textContent = Number(d.au_ag_ratio || 0).toFixed(2);
+        document.getElementById("btcgold-val").textContent = `${Number(d.btc_gold_oz || 0).toFixed(2)} oz`;
 
         const ativos = [
           { nome: "XAUUSD (Ouro)", z: d.xau_z || 0, score: d.xau_score || 0, sinal: d.xau_sinal || "NEUTRO" },
