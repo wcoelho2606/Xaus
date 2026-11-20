@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Radar Quant XAUS v4.2 - Painel Externo</title>
+  <title>Radar Quant XAUS v4.5 - Zero Delay</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen p-6 font-sans">
   <div class="max-w-6xl mx-auto">
     <!-- Cabeçalho -->
-    <div class="flex flex-wrap justify-between items-center border-b border-slate-800 pb-4 mb-6">
+    <div class="flex flex-wrap justify-between items-center border-b border-slate-800 pb-4 mb-6 gap-4">
       <div>
-        <h1 class="text-2xl font-bold tracking-tight text-amber-400">RADAR QUANTITATIVO XAUS v4.2</h1>
-        <p class="text-sm text-slate-400">Dupla Arbitragem (PAXG + XAUT) • Gatilho Score ≥ 75</p>
+        <h1 class="text-2xl font-bold tracking-tight text-amber-400">RADAR QUANTITATIVO XAUS v4.5</h1>
+        <p class="text-sm text-slate-400">Zero-Delay (1s) • Dupla Arbitragem (PAXG + XAUT) • Gatilho Score ≥ 75</p>
       </div>
       <div class="flex items-center gap-4">
-        <button id="btn-som" onclick="toggleSom()" class="py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold border border-slate-700">
+        <button id="btn-som" onclick="toggleSom()" class="py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold border border-slate-700 transition">
           ATIVAR SOM DE GATILHO
         </button>
         <div class="text-right">
@@ -25,6 +25,20 @@
           <p id="last-update" class="text-xs text-slate-500 mt-1">--:--:--</p>
         </div>
       </div>
+    </div>
+
+    <!-- Banner Fixo do Último Gatilho Disparado (Não some quando o tick volta para NEUTRO) -->
+    <div id="ultimo-gatilho-box" class="hidden mb-6 rounded-2xl border-2 p-4 flex flex-wrap justify-between items-center gap-4 transition-all">
+      <div class="flex items-center gap-3">
+        <span id="ug-badge" class="px-3 py-1 rounded-lg text-xs font-extrabold uppercase tracking-wider">SINAL</span>
+        <div>
+          <h3 id="ug-titulo" class="font-bold text-base">Último Gatilho Detectado</h3>
+          <p id="ug-detalhe" class="text-xs text-slate-300 mt-0.5">--</p>
+        </div>
+      </div>
+      <button onclick="limparGatilho()" class="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-xs font-semibold text-slate-300 border border-slate-700">
+        Limpar Alerta
+      </button>
     </div>
 
     <!-- Métricas Institucionais -->
@@ -48,32 +62,103 @@
     </div>
 
     <!-- Cards dos Ativos -->
-    <div id="cards-container" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+    <div id="cards-container" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6"></div>
+
+    <!-- Histórico Recente da Sessão -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Histórico de Gatilhos da Sessão (Score ≥ 75)</h2>
+        <button onclick="limparHistorico()" class="text-xs text-slate-500 hover:text-slate-300">Limpar Histórico</button>
+      </div>
+      <div id="historico-lista" class="text-xs text-slate-400 space-y-2">
+        <p class="text-slate-600 italic">Aguardando primeiro gatilho institucional...</p>
+      </div>
+    </div>
   </div>
 
   <script>
     const SUPABASE_URL = "https://mnnjdxtqurcamyjbxbnz.supabase.co";
     const SUPABASE_KEY = "sb_publishable_298sbZg8l7mnS1wub9oyqg_GIhTwHXb";
     let somAtivo = false;
+    let ultimoTimestampGatilho = "";
+    let historicoGatilhos = [];
 
     function toggleSom() {
       somAtivo = !somAtivo;
       const btn = document.getElementById("btn-som");
       btn.textContent = somAtivo ? "SOM ATIVADO (ON)" : "ATIVAR SOM DE GATILHO";
       btn.className = somAtivo
-        ? "py-2 px-4 rounded-xl bg-emerald-600 text-white text-xs font-semibold"
-        : "py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold border border-slate-700";
+        ? "py-2 px-4 rounded-xl bg-emerald-600 text-white text-xs font-semibold transition"
+        : "py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold border border-slate-700 transition";
     }
 
-    function tocarBipe() {
+    function tocarBipe(direcao) {
       if (!somAtivo) return;
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      osc.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.25);
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(direcao === "COMPRA" ? 980 : 660, ctx.currentTime);
+        osc.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.30);
+      } catch (e) {}
+    }
+
+    function registrarGatilhoFixo(ativo, sinal, score, zScore, horaUtc) {
+      const chaveUnica = `${ativo}-${sinal}-${horaUtc}`;
+      if (chaveUnica === ultimoTimestampGatilho) return;
+      ultimoTimestampGatilho = chaveUnica;
+
+      const horaLocal = new Date().toLocaleTimeString("pt-BR");
+      const box = document.getElementById("ultimo-gatilho-box");
+      const badge = document.getElementById("ug-badge");
+      const titulo = document.getElementById("ug-titulo");
+      const detalhe = document.getElementById("ug-detalhe");
+
+      box.classList.remove("hidden");
+      if (sinal === "COMPRA") {
+        box.className = "mb-6 rounded-2xl border-2 border-emerald-500 bg-emerald-950/40 p-4 flex flex-wrap justify-between items-center gap-4";
+        badge.className = "px-3 py-1 rounded-lg text-xs font-extrabold uppercase bg-emerald-500 text-slate-950";
+      } else {
+        box.className = "mb-6 rounded-2xl border-2 border-rose-500 bg-rose-950/40 p-4 flex flex-wrap justify-between items-center gap-4";
+        badge.className = "px-3 py-1 rounded-lg text-xs font-extrabold uppercase bg-rose-500 text-white";
+      }
+
+      badge.textContent = sinal;
+      titulo.textContent = `ÚLTIMO GATILHO TRAVADO: ${ativo} → ${sinal}`;
+      detalhe.textContent = `Score: ${Number(score).toFixed(1)}/100 • Z-Score M1: ${Number(zScore).toFixed(2)} • Disparado às ${horaLocal} (BRT)`;
+
+      historicoGatilhos.unshift({ hora: horaLocal, ativo, sinal, score: Number(score).toFixed(1), z: Number(zScore).toFixed(2) });
+      if (historicoGatilhos.length > 5) historicoGatilhos.pop();
+      renderizarHistorico();
+      tocarBipe(sinal);
+    }
+
+    function renderizarHistorico() {
+      const container = document.getElementById("historico-lista");
+      if (!historicoGatilhos.length) {
+        container.innerHTML = `<p class="text-slate-600 italic">Aguardando primeiro gatilho institucional...</p>`;
+        return;
+      }
+      container.innerHTML = historicoGatilhos.map(h => {
+        const cor = h.sinal === "COMPRA" ? "text-emerald-400" : "text-rose-400";
+        return `
+          <div class="flex justify-between items-center bg-slate-950/70 px-3 py-2 rounded-lg border border-slate-800/80 font-mono">
+            <span><strong class="text-slate-200">${h.hora}</strong> • ${h.ativo}</span>
+            <span class="font-bold ${cor}">${h.sinal} (Score ${h.score} | Z: ${h.z})</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function limparGatilho() {
+      document.getElementById("ultimo-gatilho-box").classList.add("hidden");
+    }
+
+    function limparHistorico() {
+      historicoGatilhos = [];
+      renderizarHistorico();
     }
 
     async function atualizarPainel() {
@@ -103,10 +188,10 @@
           { nome: "XAGUSD (Prata)", z: d.xag_z || 0, score: d.xag_score || 0, sinal: d.xag_sinal || "NEUTRO" }
         ];
 
-        let gatilhoAtivo = false;
         document.getElementById("cards-container").innerHTML = ativos.map(a => {
           const pronto = a.score >= 75 && a.sinal !== "NEUTRO";
-          if (pronto) gatilhoAtivo = true;
+          if (pronto) registrarGatilhoFixo(a.nome, a.sinal, a.score, a.z, d.updated_at);
+
           const corBorda = pronto
             ? (a.sinal === "COMPRA" ? "border-emerald-500 bg-emerald-950/20" : "border-rose-500 bg-rose-950/20")
             : "border-slate-800 bg-slate-900";
@@ -116,7 +201,7 @@
             <div class="border ${corBorda} rounded-2xl p-5 transition-all">
               <div class="flex justify-between items-center mb-3">
                 <h2 class="font-bold text-lg">${a.nome}</h2>
-                <span class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800">Z-M5: ${Number(a.z).toFixed(2)}</span>
+                <span class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800">Z-M1: ${Number(a.z).toFixed(2)}</span>
               </div>
               <div class="my-4">
                 <div class="flex justify-between text-xs mb-1">
@@ -124,7 +209,7 @@
                   <span class="font-bold">${Number(a.score).toFixed(1)} / 100</span>
                 </div>
                 <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
-                  <div class="bg-amber-400 h-2.5" style="width: ${Math.min(100, a.score)}%"></div>
+                  <div class="bg-amber-400 h-2.5 transition-all duration-300" style="width: ${Math.min(100, a.score)}%"></div>
                 </div>
               </div>
               <div class="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center">
@@ -134,15 +219,13 @@
             </div>
           `;
         }).join("");
-
-        if (gatilhoAtivo) tocarBipe();
       } catch (e) {
         console.error("Erro ao ler Supabase:", e);
       }
     }
 
     atualizarPainel();
-    setInterval(atualizarPainel, 5000);
+    setInterval(atualizarPainel, 1000);
   </script>
 </body>
 </html>
