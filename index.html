@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Radar Quant XAUS v4.5 - Zero Delay</title>
+  <title>Radar Quant XAUS v5.0 - IA + Order Flow</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen p-6 font-sans">
@@ -11,32 +11,47 @@
     <!-- Cabeçalho -->
     <div class="flex flex-wrap justify-between items-center border-b border-slate-800 pb-4 mb-6 gap-4">
       <div>
-        <h1 class="text-2xl font-bold tracking-tight text-amber-400">RADAR QUANTITATIVO XAUS v4.5</h1>
-        <p class="text-sm text-slate-400">Zero-Delay (1s) • Dupla Arbitragem (PAXG + XAUT) • Gatilho Score ≥ 75</p>
+        <h1 class="text-2xl font-bold tracking-tight text-amber-400">RADAR QUANTITATIVO XAUS v5.0</h1>
+        <p class="text-sm text-slate-400">Agente IA • Order Flow (Volume + Delta) • Dupla Arbitragem PAXG/XAUT</p>
       </div>
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-3">
+        <button onclick="consultarAgenteIA()" class="py-2 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition">
+          FORÇAR ANÁLISE IA
+        </button>
         <button id="btn-som" onclick="toggleSom()" class="py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold border border-slate-700 transition">
-          ATIVAR SOM DE GATILHO
+          ATIVAR SOM
         </button>
         <div class="text-right">
-          <span id="api-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300">
-            CONECTANDO...
-          </span>
+          <span id="api-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300">CONECTANDO...</span>
           <p id="last-update" class="text-xs text-slate-500 mt-1">--:--:--</p>
         </div>
       </div>
     </div>
 
-    <!-- Banner Fixo do Último Gatilho Disparado (Não some quando o tick volta para NEUTRO) -->
-    <div id="ultimo-gatilho-box" class="hidden mb-6 rounded-2xl border-2 p-4 flex flex-wrap justify-between items-center gap-4 transition-all">
+    <!-- Card Central do Agente de IA -->
+    <div id="ia-box" class="mb-6 rounded-2xl border border-indigo-500/40 bg-indigo-950/20 p-5">
+      <div class="flex flex-wrap justify-between items-center gap-3 mb-2">
+        <div class="flex items-center gap-2">
+          <span class="px-2.5 py-1 rounded-md text-xs font-extrabold bg-indigo-600 text-white">COPILOTO IA</span>
+          <span id="ia-permissao" class="text-sm font-bold text-indigo-300">AGUARDANDO...</span>
+          <span id="ia-ativo" class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">FOCO: --</span>
+          <span id="ia-estilo" class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-amber-300">MODO: --</span>
+        </div>
+        <span id="ia-confianca" class="text-xs font-mono font-bold text-slate-300">Confiança: --%</span>
+      </div>
+      <p id="ia-justificativa" class="text-sm text-slate-300">Conectando ao cérebro quantitativo...</p>
+    </div>
+
+    <!-- Banner Fixo do Último Gatilho Disparado -->
+    <div id="ultimo-gatilho-box" class="hidden mb-6 rounded-2xl border-2 p-4 flex flex-wrap justify-between items-center gap-4">
       <div class="flex items-center gap-3">
-        <span id="ug-badge" class="px-3 py-1 rounded-lg text-xs font-extrabold uppercase tracking-wider">SINAL</span>
+        <span id="ug-badge" class="px-3 py-1 rounded-lg text-xs font-extrabold uppercase">SINAL</span>
         <div>
           <h3 id="ug-titulo" class="font-bold text-base">Último Gatilho Detectado</h3>
           <p id="ug-detalhe" class="text-xs text-slate-300 mt-0.5">--</p>
         </div>
       </div>
-      <button onclick="limparGatilho()" class="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-xs font-semibold text-slate-300 border border-slate-700">
+      <button onclick="document.getElementById('ultimo-gatilho-box').classList.add('hidden')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 border border-slate-700">
         Limpar Alerta
       </button>
     </div>
@@ -64,14 +79,14 @@
     <!-- Cards dos Ativos -->
     <div id="cards-container" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6"></div>
 
-    <!-- Histórico Recente da Sessão -->
+    <!-- Histórico da Sessão -->
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
       <div class="flex justify-between items-center mb-3">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Histórico de Gatilhos da Sessão (Score ≥ 75)</h2>
-        <button onclick="limparHistorico()" class="text-xs text-slate-500 hover:text-slate-300">Limpar Histórico</button>
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Histórico de Gatilhos Autorizados (IA + Order Flow)</h2>
+        <button onclick="historicoGatilhos=[];renderizarHistorico();" class="text-xs text-slate-500 hover:text-slate-300">Limpar Histórico</button>
       </div>
       <div id="historico-lista" class="text-xs text-slate-400 space-y-2">
-        <p class="text-slate-600 italic">Aguardando primeiro gatilho institucional...</p>
+        <p class="text-slate-600 italic">Aguardando sinal com confluência institucional...</p>
       </div>
     </div>
   </div>
@@ -86,7 +101,7 @@
     function toggleSom() {
       somAtivo = !somAtivo;
       const btn = document.getElementById("btn-som");
-      btn.textContent = somAtivo ? "SOM ATIVADO (ON)" : "ATIVAR SOM DE GATILHO";
+      btn.textContent = somAtivo ? "SOM ATIVADO (ON)" : "ATIVAR SOM";
       btn.className = somAtivo
         ? "py-2 px-4 rounded-xl bg-emerald-600 text-white text-xs font-semibold transition"
         : "py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold border border-slate-700 transition";
@@ -105,7 +120,11 @@
       } catch (e) {}
     }
 
-    function registrarGatilhoFixo(ativo, sinal, score, zScore, horaUtc) {
+    async function consultarAgenteIA() {
+      try { await fetch("/api/agente-ia"); } catch (e) {}
+    }
+
+    function registrarGatilhoFixo(ativo, sinal, score, zScore, absorcao, horaUtc) {
       const chaveUnica = `${ativo}-${sinal}-${horaUtc}`;
       if (chaveUnica === ultimoTimestampGatilho) return;
       ultimoTimestampGatilho = chaveUnica;
@@ -113,10 +132,8 @@
       const horaLocal = new Date().toLocaleTimeString("pt-BR");
       const box = document.getElementById("ultimo-gatilho-box");
       const badge = document.getElementById("ug-badge");
-      const titulo = document.getElementById("ug-titulo");
-      const detalhe = document.getElementById("ug-detalhe");
-
       box.classList.remove("hidden");
+
       if (sinal === "COMPRA") {
         box.className = "mb-6 rounded-2xl border-2 border-emerald-500 bg-emerald-950/40 p-4 flex flex-wrap justify-between items-center gap-4";
         badge.className = "px-3 py-1 rounded-lg text-xs font-extrabold uppercase bg-emerald-500 text-slate-950";
@@ -126,10 +143,10 @@
       }
 
       badge.textContent = sinal;
-      titulo.textContent = `ÚLTIMO GATILHO TRAVADO: ${ativo} → ${sinal}`;
-      detalhe.textContent = `Score: ${Number(score).toFixed(1)}/100 • Z-Score M1: ${Number(zScore).toFixed(2)} • Disparado às ${horaLocal} (BRT)`;
+      document.getElementById("ug-titulo").textContent = `GATILHO EXECUTADO: ${ativo} → ${sinal}`;
+      document.getElementById("ug-detalhe").textContent = `Score: ${Number(score).toFixed(1)} | Z-M1: ${Number(zScore).toFixed(2)} | Flow: ${absorcao} | ${horaLocal}`;
 
-      historicoGatilhos.unshift({ hora: horaLocal, ativo, sinal, score: Number(score).toFixed(1), z: Number(zScore).toFixed(2) });
+      historicoGatilhos.unshift({ hora: horaLocal, ativo, sinal, score: Number(score).toFixed(1), flow: absorcao });
       if (historicoGatilhos.length > 5) historicoGatilhos.pop();
       renderizarHistorico();
       tocarBipe(sinal);
@@ -138,27 +155,18 @@
     function renderizarHistorico() {
       const container = document.getElementById("historico-lista");
       if (!historicoGatilhos.length) {
-        container.innerHTML = `<p class="text-slate-600 italic">Aguardando primeiro gatilho institucional...</p>`;
+        container.innerHTML = `<p class="text-slate-600 italic">Aguardando sinal com confluência institucional...</p>`;
         return;
       }
       container.innerHTML = historicoGatilhos.map(h => {
         const cor = h.sinal === "COMPRA" ? "text-emerald-400" : "text-rose-400";
         return `
-          <div class="flex justify-between items-center bg-slate-950/70 px-3 py-2 rounded-lg border border-slate-800/80 font-mono">
-            <span><strong class="text-slate-200">${h.hora}</strong> • ${h.ativo}</span>
-            <span class="font-bold ${cor}">${h.sinal} (Score ${h.score} | Z: ${h.z})</span>
+          <div class="flex justify-between items-center bg-slate-950/70 px-3 py-2 rounded-lg border border-slate-800 font-mono">
+            <span><strong class="text-slate-200">${h.hora}</strong> • ${h.ativo} [${h.flow}]</span>
+            <span class="font-bold ${cor}">${h.sinal} (${h.score}/100)</span>
           </div>
         `;
       }).join("");
-    }
-
-    function limparGatilho() {
-      document.getElementById("ultimo-gatilho-box").classList.add("hidden");
-    }
-
-    function limparHistorico() {
-      historicoGatilhos = [];
-      renderizarHistorico();
     }
 
     async function atualizarPainel() {
@@ -170,6 +178,29 @@
         if (!rows.length) return;
         const d = rows[0];
 
+        // Atualiza Bloco da IA
+        const iaPerm = d.ia_permissao || "AGUARDANDO";
+        const iaBox = document.getElementById("ia-box");
+        const iaPermEl = document.getElementById("ia-permissao");
+        iaPermEl.textContent = iaPerm;
+
+        if (iaPerm.includes("COMPRA")) {
+          iaBox.className = "mb-6 rounded-2xl border border-emerald-500/50 bg-emerald-950/20 p-5";
+          iaPermEl.className = "text-sm font-extrabold text-emerald-400";
+        } else if (iaPerm.includes("VENDA")) {
+          iaBox.className = "mb-6 rounded-2xl border border-rose-500/50 bg-rose-950/20 p-5";
+          iaPermEl.className = "text-sm font-extrabold text-rose-400";
+        } else {
+          iaBox.className = "mb-6 rounded-2xl border border-indigo-500/40 bg-indigo-950/20 p-5";
+          iaPermEl.className = "text-sm font-bold text-indigo-300";
+        }
+
+        document.getElementById("ia-ativo").textContent = `FOCO: ${d.ia_ativo_foco || "--"}`;
+        document.getElementById("ia-estilo").textContent = `MODO: ${d.ia_estilo || "--"}`;
+        document.getElementById("ia-confianca").textContent = `Confiança IA: ${d.ia_confianca || 0}%`;
+        document.getElementById("ia-justificativa").textContent = d.ia_justificativa || "";
+
+        // Atualiza API e Métricas
         const badge = document.getElementById("api-badge");
         badge.textContent = `API: ${d.api_status}`;
         badge.className = d.api_status === "FRESH"
@@ -183,27 +214,32 @@
         document.getElementById("btcgold-val").textContent = `${Number(d.btc_gold_oz || 0).toFixed(2)} oz`;
 
         const ativos = [
-          { nome: "XAUUSD (Ouro)", z: d.xau_z || 0, score: d.xau_score || 0, sinal: d.xau_sinal || "NEUTRO" },
-          { nome: "BTCUSD (Bitcoin)", z: d.btc_z || 0, score: d.btc_score || 0, sinal: d.btc_sinal || "NEUTRO" },
-          { nome: "XAGUSD (Prata)", z: d.xag_z || 0, score: d.xag_score || 0, sinal: d.xag_sinal || "NEUTRO" }
+          { nome: "XAUUSD (Ouro)", z: d.xau_z || 0, score: d.xau_score || 0, sinal: d.xau_sinal || "NEUTRO", abs: d.xau_absorcao || "NEUTRO", poc: d.xau_poc || 0 },
+          { nome: "BTCUSD (Bitcoin)", z: d.btc_z || 0, score: d.btc_score || 0, sinal: d.btc_sinal || "NEUTRO", abs: d.btc_absorcao || "NEUTRO", poc: d.btc_poc || 0 },
+          { nome: "XAGUSD (Prata)", z: d.xag_z || 0, score: d.xag_score || 0, sinal: d.xag_sinal || "NEUTRO", abs: d.xag_absorcao || "NEUTRO", poc: d.xag_poc || 0 }
         ];
 
         document.getElementById("cards-container").innerHTML = ativos.map(a => {
           const pronto = a.score >= 75 && a.sinal !== "NEUTRO";
-          if (pronto) registrarGatilhoFixo(a.nome, a.sinal, a.score, a.z, d.updated_at);
+          if (pronto) registrarGatilhoFixo(a.nome, a.sinal, a.score, a.z, a.abs, d.updated_at);
 
           const corBorda = pronto
             ? (a.sinal === "COMPRA" ? "border-emerald-500 bg-emerald-950/20" : "border-rose-500 bg-rose-950/20")
             : "border-slate-800 bg-slate-900";
           const corSinal = a.sinal === "COMPRA" ? "text-emerald-400" : (a.sinal === "VENDA" ? "text-rose-400" : "text-slate-400");
+          const corFlow = a.abs === "ABSORBED_BUY" ? "text-emerald-400" : (a.abs === "ABSORBED_SELL" ? "text-fuchsia-400" : "text-slate-400");
 
           return `
             <div class="border ${corBorda} rounded-2xl p-5 transition-all">
-              <div class="flex justify-between items-center mb-3">
+              <div class="flex justify-between items-center mb-2">
                 <h2 class="font-bold text-lg">${a.nome}</h2>
                 <span class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800">Z-M1: ${Number(a.z).toFixed(2)}</span>
               </div>
-              <div class="my-4">
+              <div class="flex justify-between text-xs font-mono bg-slate-950/60 px-2.5 py-1.5 rounded-lg mb-3 border border-slate-800/80">
+                <span class="${corFlow}">${a.abs}</span>
+                <span class="text-amber-300">POC: ${Number(a.poc).toFixed(2)}</span>
+              </div>
+              <div class="my-3">
                 <div class="flex justify-between text-xs mb-1">
                   <span class="text-slate-400">Score de Confluência</span>
                   <span class="font-bold">${Number(a.score).toFixed(1)} / 100</span>
@@ -212,20 +248,20 @@
                   <div class="bg-amber-400 h-2.5 transition-all duration-300" style="width: ${Math.min(100, a.score)}%"></div>
                 </div>
               </div>
-              <div class="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center">
+              <div class="mt-3 pt-3 border-t border-slate-800 flex justify-between items-center">
                 <span class="text-xs text-slate-400">Status</span>
                 <span class="font-bold text-sm ${corSinal}">${pronto ? `>>> ${a.sinal} <<<` : a.sinal}</span>
               </div>
             </div>
           `;
         }).join("");
-      } catch (e) {
-        console.error("Erro ao ler Supabase:", e);
-      }
+      } catch (e) { console.error(e); }
     }
 
     atualizarPainel();
+    consultarAgenteIA();
     setInterval(atualizarPainel, 1000);
+    setInterval(consultarAgenteIA, 30000);
   </script>
 </body>
 </html>
