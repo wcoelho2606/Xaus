@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Radar Quant XAUS v5.0 - IA + Order Flow</title>
+  <title>Radar Quant XAUS v5.1 - IA Auto + Controle Remoto MT5</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen p-6 font-sans">
@@ -11,257 +11,441 @@
     <!-- Cabeçalho -->
     <div class="flex flex-wrap justify-between items-center border-b border-slate-800 pb-4 mb-6 gap-4">
       <div>
-        <h1 class="text-2xl font-bold tracking-tight text-amber-400">RADAR QUANTITATIVO XAUS v5.0</h1>
-        <p class="text-sm text-slate-400">Agente IA • Order Flow (Volume + Delta) • Dupla Arbitragem PAXG/XAUT</p>
+        <h1 class="text-2xl font-bold tracking-tight text-amber-400">RADAR QUANTITATIVO XAUS v5.1</h1>
+        <p class="text-sm text-slate-400">Agente IA Automático (60s) • Controle Remoto MT5 • Order Flow (Volume + Delta)</p>
       </div>
-      <div class="flex items-center gap-3">
-        <button onclick="consultarAgenteIA()" class="py-2 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition">
-          FORÇAR ANÁLISE IA
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- Botão Ligar/Pausar Robô MT5 -->
+        <button id="btn-robo-mt5" onclick="alternarRoboMT5()" class="py-2 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold tracking-wide transition shadow-lg">
+          ROBÔ MT5: PAUSADO
         </button>
-        <button id="btn-som" onclick="toggleSom()" class="py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold border border-slate-700 transition">
-          ATIVAR SOM
+
+        <!-- Botão Análise IA (Manual + Contagem Automática 60s) -->
+        <button id="btn-forcar-ia" onclick="consultarAgenteIA(true)" class="py-2 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition">
+          ANÁLISE IA (60s)
         </button>
+
+        <!-- Botão Som -->
+        <button id="btn-som" onclick="alternarSom()" class="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition">
+          SOM ATIVADO (ON)
+        </button>
+
         <div class="text-right">
-          <span id="api-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300">CONECTANDO...</span>
-          <p id="last-update" class="text-xs text-slate-500 mt-1">--:--:--</p>
+          <span id="status-api" class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400">
+            CONECTANDO...
+          </span>
+          <p id="ultima-atualizacao" class="text-xs text-slate-500 mt-1">Aguardando dados...</p>
         </div>
       </div>
     </div>
 
-    <!-- Card Central do Agente de IA -->
-    <div id="ia-box" class="mb-6 rounded-2xl border border-indigo-500/40 bg-indigo-950/20 p-5">
+    <!-- Card Dinâmico: Copiloto Agente IA -->
+    <div id="card-ia" class="bg-slate-900/90 border border-indigo-500/30 rounded-2xl p-5 mb-6 transition-all duration-300">
       <div class="flex flex-wrap justify-between items-center gap-3 mb-2">
-        <div class="flex items-center gap-2">
-          <span class="px-2.5 py-1 rounded-md text-xs font-extrabold bg-indigo-600 text-white">COPILOTO IA</span>
-          <span id="ia-permissao" class="text-sm font-bold text-indigo-300">AGUARDANDO...</span>
-          <span id="ia-ativo" class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">FOCO: --</span>
-          <span id="ia-estilo" class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-amber-300">MODO: --</span>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 text-xs font-bold tracking-wider">COPILOTO IA</span>
+          <span id="ia-permissao" class="text-sm font-bold text-slate-200">AGUARDANDO...</span>
+          <span id="ia-ativo" class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300">FOCO: NENHUM</span>
+          <span id="ia-estrategia" class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">MODO: --</span>
         </div>
-        <span id="ia-confianca" class="text-xs font-mono font-bold text-slate-300">Confiança: --%</span>
+        <div class="flex items-center gap-4 text-xs text-slate-400">
+          <span id="ia-timer">Próxima varredura IA: 60s</span>
+          <span id="ia-confianca" class="font-semibold text-indigo-300">Confiança IA: 0%</span>
+        </div>
       </div>
-      <p id="ia-justificativa" class="text-sm text-slate-300">Conectando ao cérebro quantitativo...</p>
+      <p id="ia-justificativa" class="text-sm text-slate-300">Iniciando varredura automática entre Order Flow, Z-Score e fluxo institucional...</p>
     </div>
 
-    <!-- Banner Fixo do Último Gatilho Disparado -->
-    <div id="ultimo-gatilho-box" class="hidden mb-6 rounded-2xl border-2 p-4 flex flex-wrap justify-between items-center gap-4">
+    <!-- Banner de Alerta Sonoro / Gatilho -->
+    <div id="banner-alerta" class="hidden mb-6 p-4 rounded-2xl border flex items-center justify-between transition-all duration-300">
       <div class="flex items-center gap-3">
-        <span id="ug-badge" class="px-3 py-1 rounded-lg text-xs font-extrabold uppercase">SINAL</span>
+        <span id="alerta-badge" class="px-3 py-1 rounded-lg text-xs font-extrabold uppercase tracking-wider">SINAL</span>
         <div>
-          <h3 id="ug-titulo" class="font-bold text-base">Último Gatilho Detectado</h3>
-          <p id="ug-detalhe" class="text-xs text-slate-300 mt-0.5">--</p>
+          <h3 id="alerta-titulo" class="font-bold text-base">Oportunidade Detectada</h3>
+          <p id="alerta-subtitulo" class="text-xs opacity-80">Z-Score + Order Flow em confluência.</p>
         </div>
       </div>
-      <button onclick="document.getElementById('ultimo-gatilho-box').classList.add('hidden')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 border border-slate-700">
+      <button onclick="fecharAlerta()" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300">
         Limpar Alerta
       </button>
     </div>
 
-    <!-- Métricas Institucionais -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-        <span class="text-xs text-slate-400 uppercase">PAXG / Gold Ratio</span>
-        <p id="paxg-val" class="text-xl font-mono font-bold mt-1 text-amber-300">--</p>
+    <!-- Métricas Globais (Ratios e Paridades) -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <p class="text-xs text-slate-400 uppercase font-semibold">PAXG / GOLD RATIO</p>
+        <p id="paxg-ratio" class="text-2xl font-bold text-amber-400 mt-1">--</p>
       </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-        <span class="text-xs text-slate-400 uppercase">XAUT / Gold Ratio</span>
-        <p id="xaut-val" class="text-xl font-mono font-bold mt-1 text-amber-300">--</p>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <p class="text-xs text-slate-400 uppercase font-semibold">XAUT / GOLD RATIO</p>
+        <p id="xaut-ratio" class="text-2xl font-bold text-amber-400 mt-1">--</p>
       </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-        <span class="text-xs text-slate-400 uppercase">Razão Ouro / Prata</span>
-        <p id="auag-val" class="text-xl font-mono font-bold mt-1">--</p>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <p class="text-xs text-slate-400 uppercase font-semibold">RAZÃO OURO / PRATA</p>
+        <p id="xau-xag-ratio" class="text-2xl font-bold text-slate-200 mt-1">--</p>
       </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-        <span class="text-xs text-slate-400 uppercase">1 BTC em Ouro</span>
-        <p id="btcgold-val" class="text-xl font-mono font-bold mt-1 text-sky-400">-- oz</p>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <p class="text-xs text-slate-400 uppercase font-semibold">1 BTC EM OURO</p>
+        <p id="btc-oz" class="text-2xl font-bold text-sky-400 mt-1">-- oz</p>
       </div>
     </div>
 
-    <!-- Cards dos Ativos -->
-    <div id="cards-container" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6"></div>
-
-    <!-- Histórico da Sessão -->
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-      <div class="flex justify-between items-center mb-3">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Histórico de Gatilhos Autorizados (IA + Order Flow)</h2>
-        <button onclick="historicoGatilhos=[];renderizarHistorico();" class="text-xs text-slate-500 hover:text-slate-300">Limpar Histórico</button>
+    <!-- Cards de Confluência + Order Flow por Ativo -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <!-- XAUUSD -->
+      <div id="card-xau" class="bg-slate-900 border border-slate-800 rounded-2xl p-6 transition-all duration-300">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-lg font-bold text-amber-400">XAUUSD (Ouro)</h2>
+          <span id="xau-zscore" class="text-xs px-2.5 py-1 rounded-md bg-slate-800 text-slate-300">Z-M1: --</span>
+        </div>
+        <div class="flex justify-between items-center text-xs bg-slate-950/70 border border-slate-800/80 rounded-lg px-3 py-2 mb-4">
+          <span id="xau-flow" class="font-bold text-slate-400">FLOW: NEUTRO</span>
+          <span id="xau-poc" class="text-amber-300 font-mono">POC: 0.00</span>
+        </div>
+        <div class="mb-3">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-400">Score de Confluência</span>
+            <span id="xau-score" class="font-bold">0.0 / 100</span>
+          </div>
+          <div class="w-full bg-slate-800 rounded-full h-2.5">
+            <div id="xau-bar" class="bg-amber-400 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center">
+          <span class="text-xs text-slate-400">Status</span>
+          <span id="xau-sinal" class="text-sm font-extrabold tracking-wide text-slate-300">NEUTRO</span>
+        </div>
       </div>
-      <div id="historico-lista" class="text-xs text-slate-400 space-y-2">
-        <p class="text-slate-600 italic">Aguardando sinal com confluência institucional...</p>
+
+      <!-- BTCUSD -->
+      <div id="card-btc" class="bg-slate-900 border border-slate-800 rounded-2xl p-6 transition-all duration-300">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-lg font-bold text-orange-400">BTCUSD (Bitcoin)</h2>
+          <span id="btc-zscore" class="text-xs px-2.5 py-1 rounded-md bg-slate-800 text-slate-300">Z-M1: --</span>
+        </div>
+        <div class="flex justify-between items-center text-xs bg-slate-950/70 border border-slate-800/80 rounded-lg px-3 py-2 mb-4">
+          <span id="btc-flow" class="font-bold text-slate-400">FLOW: NEUTRO</span>
+          <span id="btc-poc" class="text-amber-300 font-mono">POC: 0.00</span>
+        </div>
+        <div class="mb-3">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-400">Score de Confluência</span>
+            <span id="btc-score" class="font-bold">0.0 / 100</span>
+          </div>
+          <div class="w-full bg-slate-800 rounded-full h-2.5">
+            <div id="btc-bar" class="bg-orange-400 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center">
+          <span class="text-xs text-slate-400">Status</span>
+          <span id="btc-sinal" class="text-sm font-extrabold tracking-wide text-slate-300">NEUTRO</span>
+        </div>
+      </div>
+
+      <!-- XAGUSD -->
+      <div id="card-xag" class="bg-slate-900 border border-slate-800 rounded-2xl p-6 transition-all duration-300">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-lg font-bold text-slate-300">XAGUSD (Prata)</h2>
+          <span id="xag-zscore" class="text-xs px-2.5 py-1 rounded-md bg-slate-800 text-slate-300">Z-M1: --</span>
+        </div>
+        <div class="flex justify-between items-center text-xs bg-slate-950/70 border border-slate-800/80 rounded-lg px-3 py-2 mb-4">
+          <span id="xag-flow" class="font-bold text-slate-400">FLOW: NEUTRO</span>
+          <span id="xag-poc" class="text-amber-300 font-mono">POC: 0.00</span>
+        </div>
+        <div class="mb-3">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-400">Score de Confluência</span>
+            <span id="xag-score" class="font-bold">0.0 / 100</span>
+          </div>
+          <div class="w-full bg-slate-800 rounded-full h-2.5">
+            <div id="xag-bar" class="bg-slate-300 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center">
+          <span class="text-xs text-slate-400">Status</span>
+          <span id="xag-sinal" class="text-sm font-extrabold tracking-wide text-slate-300">NEUTRO</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log Histórico de Gatilhos -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Histórico de Gatilhos Autorizados (IA + Order Flow)</h3>
+        <button onclick="limparHistorico()" class="text-xs text-slate-500 hover:text-slate-300">Limpar Histórico</button>
+      </div>
+      <div id="lista-historico" class="space-y-2 text-xs text-slate-300 max-h-40 overflow-y-auto">
+        <p class="text-slate-500 italic">Nenhum gatilho disparado nesta sessão.</p>
       </div>
     </div>
   </div>
 
   <script>
     const SUPABASE_URL = "https://mnnjdxtqurcamyjbxbnz.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_298sbZg8l7mnS1wub9oyqg_GIhTwHXb";
-    let somAtivo = false;
-    let ultimoTimestampGatilho = "";
-    let historicoGatilhos = [];
+    const SUPABASE_ANON_KEY = "sb_publishable_298sbZg8l7mnS1wub9oyqg_GIhTwHXb";
 
-    function toggleSom() {
-      somAtivo = !somAtivo;
-      const btn = document.getElementById("btn-som");
-      btn.textContent = somAtivo ? "SOM ATIVADO (ON)" : "ATIVAR SOM";
-      btn.className = somAtivo
-        ? "py-2 px-4 rounded-xl bg-emerald-600 text-white text-xs font-semibold transition"
-        : "py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold border border-slate-700 transition";
-    }
+    let somAtivado = true;
+    let roboAtivoEstado = false;
+    let segundosParaProximaIA = 60;
+    let consultandoIA = false;
+    let ultimoEstado = { xau: "NEUTRO", btc: "NEUTRO", xag: "NEUTRO", ia: "BLOQUEADO" };
+    let historico = [];
 
-    function tocarBipe(direcao) {
-      if (!somAtivo) return;
+    function tocarAlertaSonoro(tipo) {
+      if (!somAtivado) return;
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
         osc.type = "sine";
-        osc.frequency.setValueAtTime(direcao === "COMPRA" ? 980 : 660, ctx.currentTime);
-        osc.connect(ctx.destination);
+        osc.frequency.setValueAtTime(tipo === "COMPRA" ? 880 : 520, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(tipo === "COMPRA" ? 1180 : 380, ctx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
         osc.start();
-        osc.stop(ctx.currentTime + 0.30);
+        osc.stop(ctx.currentTime + 0.35);
       } catch (e) {}
     }
 
-    async function consultarAgenteIA() {
-      try { await fetch("/api/agente-ia"); } catch (e) {}
+    function alternarSom() {
+      somAtivado = !somAtivado;
+      const btn = document.getElementById("btn-som");
+      btn.textContent = somAtivado ? "SOM ATIVADO (ON)" : "SOM MUDO (OFF)";
+      btn.className = somAtivado
+        ? "py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition"
+        : "py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs font-semibold transition";
+      if (somAtivado) tocarAlertaSonoro("COMPRA");
     }
 
-    function registrarGatilhoFixo(ativo, sinal, score, zScore, absorcao, horaUtc) {
-      const chaveUnica = `${ativo}-${sinal}-${horaUtc}`;
-      if (chaveUnica === ultimoTimestampGatilho) return;
-      ultimoTimestampGatilho = chaveUnica;
-
-      const horaLocal = new Date().toLocaleTimeString("pt-BR");
-      const box = document.getElementById("ultimo-gatilho-box");
-      const badge = document.getElementById("ug-badge");
-      box.classList.remove("hidden");
-
-      if (sinal === "COMPRA") {
-        box.className = "mb-6 rounded-2xl border-2 border-emerald-500 bg-emerald-950/40 p-4 flex flex-wrap justify-between items-center gap-4";
-        badge.className = "px-3 py-1 rounded-lg text-xs font-extrabold uppercase bg-emerald-500 text-slate-950";
+    function atualizarVisualBotaoRobo(ativo) {
+      roboAtivoEstado = !!ativo;
+      const btn = document.getElementById("btn-robo-mt5");
+      if (roboAtivoEstado) {
+        btn.textContent = "ROBÔ MT5: ATIVO (ON)";
+        btn.className = "py-2 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold tracking-wide transition shadow-lg shadow-emerald-500/20";
       } else {
-        box.className = "mb-6 rounded-2xl border-2 border-rose-500 bg-rose-950/40 p-4 flex flex-wrap justify-between items-center gap-4";
-        badge.className = "px-3 py-1 rounded-lg text-xs font-extrabold uppercase bg-rose-500 text-white";
+        btn.textContent = "ROBÔ MT5: PAUSADO";
+        btn.className = "py-2 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold tracking-wide transition shadow-lg";
+      }
+    }
+
+    async function alternarRoboMT5() {
+      const novoEstado = !roboAtivoEstado;
+      const btn = document.getElementById("btn-robo-mt5");
+      btn.textContent = "ENVIANDO...";
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/radar_xaus?id=eq.1`, {
+          method: "PATCH",
+          headers: {
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal"
+          },
+          body: JSON.stringify({ robo_ativo: novoEstado })
+        });
+        if (res.ok) {
+          atualizarVisualBotaoRobo(novoEstado);
+          tocarAlertaSonoro(novoEstado ? "COMPRA" : "VENDA");
+        }
+      } catch (e) {
+        atualizarVisualBotaoRobo(roboAtivoEstado);
+      }
+    }
+
+    async function consultarAgenteIA(manual = false) {
+      if (consultandoIA) return;
+      consultandoIA = true;
+      const btn = document.getElementById("btn-forcar-ia");
+      btn.textContent = "ANALISANDO IA...";
+      try {
+        await fetch("/api/agente-ia");
+        segundosParaProximaIA = 60;
+        await atualizarPainel();
+      } catch (e) {
+        console.error("Erro ao consultar Agente IA:", e);
+      } finally {
+        consultandoIA = false;
+        btn.textContent = "ANÁLISE IA (60s)";
+      }
+    }
+
+    function dispararBanner(ativo, direcao, score, zscore, flow) {
+      const banner = document.getElementById("banner-alerta");
+      const badge = document.getElementById("alerta-badge");
+      const titulo = document.getElementById("alerta-titulo");
+      const sub = document.getElementById("alerta-subtitulo");
+
+      banner.classList.remove("hidden", "bg-emerald-950/90", "border-emerald-500", "text-emerald-200", "bg-rose-950/90", "border-rose-500", "text-rose-200");
+      if (direcao === "COMPRA") {
+        banner.classList.add("bg-emerald-950/90", "border-emerald-500", "text-emerald-200");
+        badge.className = "px-3 py-1 rounded-lg text-xs font-extrabold bg-emerald-500 text-slate-950";
+      } else {
+        banner.classList.add("bg-rose-950/90", "border-rose-500", "text-rose-200");
+        badge.className = "px-3 py-1 rounded-lg text-xs font-extrabold bg-rose-500 text-white";
       }
 
-      badge.textContent = sinal;
-      document.getElementById("ug-titulo").textContent = `GATILHO EXECUTADO: ${ativo} → ${sinal}`;
-      document.getElementById("ug-detalhe").textContent = `Score: ${Number(score).toFixed(1)} | Z-M1: ${Number(zScore).toFixed(2)} | Flow: ${absorcao} | ${horaLocal}`;
+      badge.textContent = direcao;
+      titulo.textContent = `GATILHO EXECUTADO: ${ativo} → ${direcao}`;
+      sub.textContent = `Score: ${score.toFixed(1)} | Z-M1: ${zscore.toFixed(2)} | Flow: ${flow} | ${new Date().toLocaleTimeString()}`;
 
-      historicoGatilhos.unshift({ hora: horaLocal, ativo, sinal, score: Number(score).toFixed(1), flow: absorcao });
-      if (historicoGatilhos.length > 5) historicoGatilhos.pop();
+      historico.unshift({
+        hora: new Date().toLocaleTimeString(),
+        ativo, direcao, score: score.toFixed(1), flow
+      });
       renderizarHistorico();
-      tocarBipe(sinal);
+      tocarAlertaSonoro(direcao);
+    }
+
+    function fecharAlerta() {
+      document.getElementById("banner-alerta").classList.add("hidden");
+    }
+
+    function limparHistorico() {
+      historico = [];
+      renderizarHistorico();
     }
 
     function renderizarHistorico() {
-      const container = document.getElementById("historico-lista");
-      if (!historicoGatilhos.length) {
-        container.innerHTML = `<p class="text-slate-600 italic">Aguardando sinal com confluência institucional...</p>`;
+      const el = document.getElementById("lista-historico");
+      if (!historico.length) {
+        el.innerHTML = `<p class="text-slate-500 italic">Nenhum gatilho disparado nesta sessão.</p>`;
         return;
       }
-      container.innerHTML = historicoGatilhos.map(h => {
-        const cor = h.sinal === "COMPRA" ? "text-emerald-400" : "text-rose-400";
-        return `
-          <div class="flex justify-between items-center bg-slate-950/70 px-3 py-2 rounded-lg border border-slate-800 font-mono">
-            <span><strong class="text-slate-200">${h.hora}</strong> • ${h.ativo} [${h.flow}]</span>
-            <span class="font-bold ${cor}">${h.sinal} (${h.score}/100)</span>
-          </div>
-        `;
-      }).join("");
+      el.innerHTML = historico.slice(0, 15).map(item => `
+        <div class="flex justify-between items-center py-1.5 px-3 rounded-lg bg-slate-950/70 border border-slate-800/80">
+          <span><strong class="text-slate-400">${item.hora}</strong> • ${item.ativo} <span class="text-amber-300">[${item.flow}]</span></span>
+          <span class="font-bold ${item.direcao === 'COMPRA' ? 'text-emerald-400' : 'text-rose-400'}">${item.direcao} (${item.score}/100)</span>
+        </div>
+      `).join("");
+    }
+
+    function formatarFlow(flowStr) {
+      if (!flowStr || flowStr === "NEUTRO") return { texto: "NEUTRO", classe: "font-bold text-slate-400" };
+      if (flowStr === "ABSORBED_BUY") return { texto: "ABSORÇÃO COMPRA", classe: "font-extrabold text-emerald-400" };
+      if (flowStr === "ABSORBED_SELL") return { texto: "ABSORÇÃO VENDA", classe: "font-extrabold text-rose-400" };
+      return { texto: flowStr, classe: "font-bold text-amber-300" };
+    }
+
+    function formatarCard(prefixo, nomeCompleto, chaveEstado, score, zscore, sinal, flow, poc) {
+      const scoreVal = Number(score || 0);
+      const zVal = Number(zscore || 0);
+      const pocVal = Number(poc || 0);
+      const estadoAtual = (sinal || "NEUTRO").toUpperCase();
+
+      document.getElementById(`${prefixo}-score`).textContent = `${scoreVal.toFixed(1)} / 100`;
+      document.getElementById(`${prefixo}-zscore`).textContent = `Z-M1: ${zVal.toFixed(2)}`;
+      document.getElementById(`${prefixo}-bar`).style.width = `${Math.min(100, Math.max(0, scoreVal))}%`;
+      document.getElementById(`${prefixo}-poc`).textContent = `POC: ${pocVal.toFixed(2)}`;
+
+      const f = formatarFlow(flow);
+      const flowEl = document.getElementById(`${prefixo}-flow`);
+      flowEl.textContent = f.texto;
+      flowEl.className = f.classe;
+
+      const sinalEl = document.getElementById(`${prefixo}-sinal`);
+      const cardEl = document.getElementById(`card-${prefixo}`);
+
+      cardEl.classList.remove("border-emerald-500", "shadow-lg", "shadow-emerald-500/10", "border-rose-500", "shadow-rose-500/10");
+      cardEl.classList.add("border-slate-800");
+
+      if (estadoAtual.includes("COMPRA")) {
+        sinalEl.textContent = ">>> COMPRA <<<";
+        sinalEl.className = "text-sm font-extrabold tracking-wide text-emerald-400";
+        cardEl.classList.remove("border-slate-800");
+        cardEl.classList.add("border-emerald-500", "shadow-lg", "shadow-emerald-500/10");
+      } else if (estadoAtual.includes("VENDA")) {
+        sinalEl.textContent = ">>> VENDA <<<";
+        sinalEl.className = "text-sm font-extrabold tracking-wide text-rose-400";
+        cardEl.classList.remove("border-slate-800");
+        cardEl.classList.add("border-rose-500", "shadow-lg", "shadow-rose-500/10");
+      } else {
+        sinalEl.textContent = "NEUTRO";
+        sinalEl.className = "text-sm font-extrabold tracking-wide text-slate-300";
+      }
+
+      if (ultimoEstado[chaveEstado] !== estadoAtual) {
+        if (estadoAtual.includes("COMPRA")) dispararBanner(nomeCompleto, "COMPRA", scoreVal, zVal, f.texto);
+        else if (estadoAtual.includes("VENDA")) dispararBanner(nomeCompleto, "VENDA", scoreVal, zVal, f.texto);
+        ultimoEstado[chaveEstado] = estadoAtual;
+      }
     }
 
     async function atualizarPainel() {
       try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/radar_xaus?id=eq.1`, {
-          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/radar_xaus?id=eq.1&select=*`, {
+          headers: {
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+          }
         });
         const rows = await res.json();
-        if (!rows.length) return;
+        if (!rows || !rows.length) return;
         const d = rows[0];
 
-        // Atualiza Bloco da IA
-        const iaPerm = d.ia_permissao || "AGUARDANDO";
-        const iaBox = document.getElementById("ia-box");
-        const iaPermEl = document.getElementById("ia-permissao");
-        iaPermEl.textContent = iaPerm;
+        atualizarVisualBotaoRobo(d.robo_ativo);
 
-        if (iaPerm.includes("COMPRA")) {
-          iaBox.className = "mb-6 rounded-2xl border border-emerald-500/50 bg-emerald-950/20 p-5";
+        document.getElementById("status-api").textContent = `API: ${d.status_api || "ONLINE"}`;
+        document.getElementById("ultima-atualizacao").textContent = `Atualizado: ${d.updated_at || "agora"}`;
+
+        document.getElementById("paxg-ratio").textContent = Number(d.paxg_ratio || 0).toFixed(4);
+        document.getElementById("xaut-ratio").textContent = Number(d.xaut_ratio || 0).toFixed(4);
+        document.getElementById("xau-xag-ratio").textContent = Number(d.xau_xag_ratio || 0).toFixed(2);
+        document.getElementById("btc-oz").textContent = `${Number(d.btc_oz || 0).toFixed(2)} oz`;
+
+        // Atualiza Card da IA
+        const iaPerm = d.ia_permissao || "BLOQUEADO";
+        const iaPermEl = document.getElementById("ia-permissao");
+        const cardIa = document.getElementById("card-ia");
+        iaPermEl.textContent = iaPerm;
+        document.getElementById("ia-ativo").textContent = `FOCO: ${d.ia_ativo_alvo || "NENHUM"}`;
+        document.getElementById("ia-estrategia").textContent = `MODO: ${d.ia_estrategia || "GRADE_LIMIT"}`;
+        document.getElementById("ia-confianca").textContent = `Confiança IA: ${d.ia_confianca || 0}%`;
+        document.getElementById("ia-justificativa").textContent = d.ia_justificativa || "Aguardando análise...";
+
+        cardIa.classList.remove("border-emerald-500", "border-rose-500", "border-indigo-500/30");
+        if (iaPerm === "LIBERADO_COMPRA") {
           iaPermEl.className = "text-sm font-extrabold text-emerald-400";
-        } else if (iaPerm.includes("VENDA")) {
-          iaBox.className = "mb-6 rounded-2xl border border-rose-500/50 bg-rose-950/20 p-5";
+          cardIa.classList.add("border-emerald-500");
+        } else if (iaPerm === "LIBERADO_VENDA") {
           iaPermEl.className = "text-sm font-extrabold text-rose-400";
+          cardIa.classList.add("border-rose-500");
         } else {
-          iaBox.className = "mb-6 rounded-2xl border border-indigo-500/40 bg-indigo-950/20 p-5";
-          iaPermEl.className = "text-sm font-bold text-indigo-300";
+          iaPermEl.className = "text-sm font-bold text-slate-300";
+          cardIa.classList.add("border-indigo-500/30");
         }
 
-        document.getElementById("ia-ativo").textContent = `FOCO: ${d.ia_ativo_foco || "--"}`;
-        document.getElementById("ia-estilo").textContent = `MODO: ${d.ia_estilo || "--"}`;
-        document.getElementById("ia-confianca").textContent = `Confiança IA: ${d.ia_confianca || 0}%`;
-        document.getElementById("ia-justificativa").textContent = d.ia_justificativa || "";
+        if (ultimoEstado.ia !== iaPerm && iaPerm.startsWith("LIBERADO")) {
+          tocarAlertaSonoro(iaPerm.includes("COMPRA") ? "COMPRA" : "VENDA");
+        }
+        ultimoEstado.ia = iaPerm;
 
-        // Atualiza API e Métricas
-        const badge = document.getElementById("api-badge");
-        badge.textContent = `API: ${d.api_status}`;
-        badge.className = d.api_status === "FRESH"
-          ? "px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
-          : "px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-400";
-
-        document.getElementById("last-update").textContent = `Atualizado: ${d.updated_at}`;
-        document.getElementById("paxg-val").textContent = Number(d.paxg_ratio || 0).toFixed(4);
-        document.getElementById("xaut-val").textContent = Number(d.xaut_ratio || 0).toFixed(4);
-        document.getElementById("auag-val").textContent = Number(d.au_ag_ratio || 0).toFixed(2);
-        document.getElementById("btcgold-val").textContent = `${Number(d.btc_gold_oz || 0).toFixed(2)} oz`;
-
-        const ativos = [
-          { nome: "XAUUSD (Ouro)", z: d.xau_z || 0, score: d.xau_score || 0, sinal: d.xau_sinal || "NEUTRO", abs: d.xau_absorcao || "NEUTRO", poc: d.xau_poc || 0 },
-          { nome: "BTCUSD (Bitcoin)", z: d.btc_z || 0, score: d.btc_score || 0, sinal: d.btc_sinal || "NEUTRO", abs: d.btc_absorcao || "NEUTRO", poc: d.btc_poc || 0 },
-          { nome: "XAGUSD (Prata)", z: d.xag_z || 0, score: d.xag_score || 0, sinal: d.xag_sinal || "NEUTRO", abs: d.xag_absorcao || "NEUTRO", poc: d.xag_poc || 0 }
-        ];
-
-        document.getElementById("cards-container").innerHTML = ativos.map(a => {
-          const pronto = a.score >= 75 && a.sinal !== "NEUTRO";
-          if (pronto) registrarGatilhoFixo(a.nome, a.sinal, a.score, a.z, a.abs, d.updated_at);
-
-          const corBorda = pronto
-            ? (a.sinal === "COMPRA" ? "border-emerald-500 bg-emerald-950/20" : "border-rose-500 bg-rose-950/20")
-            : "border-slate-800 bg-slate-900";
-          const corSinal = a.sinal === "COMPRA" ? "text-emerald-400" : (a.sinal === "VENDA" ? "text-rose-400" : "text-slate-400");
-          const corFlow = a.abs === "ABSORBED_BUY" ? "text-emerald-400" : (a.abs === "ABSORBED_SELL" ? "text-fuchsia-400" : "text-slate-400");
-
-          return `
-            <div class="border ${corBorda} rounded-2xl p-5 transition-all">
-              <div class="flex justify-between items-center mb-2">
-                <h2 class="font-bold text-lg">${a.nome}</h2>
-                <span class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800">Z-M1: ${Number(a.z).toFixed(2)}</span>
-              </div>
-              <div class="flex justify-between text-xs font-mono bg-slate-950/60 px-2.5 py-1.5 rounded-lg mb-3 border border-slate-800/80">
-                <span class="${corFlow}">${a.abs}</span>
-                <span class="text-amber-300">POC: ${Number(a.poc).toFixed(2)}</span>
-              </div>
-              <div class="my-3">
-                <div class="flex justify-between text-xs mb-1">
-                  <span class="text-slate-400">Score de Confluência</span>
-                  <span class="font-bold">${Number(a.score).toFixed(1)} / 100</span>
-                </div>
-                <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
-                  <div class="bg-amber-400 h-2.5 transition-all duration-300" style="width: ${Math.min(100, a.score)}%"></div>
-                </div>
-              </div>
-              <div class="mt-3 pt-3 border-t border-slate-800 flex justify-between items-center">
-                <span class="text-xs text-slate-400">Status</span>
-                <span class="font-bold text-sm ${corSinal}">${pronto ? `>>> ${a.sinal} <<<` : a.sinal}</span>
-              </div>
-            </div>
-          `;
-        }).join("");
-      } catch (e) { console.error(e); }
+        formatarCard("xau", "XAUUSD (Ouro)", "xau", d.xau_score, d.xau_zscore, d.xau_sinal, d.xau_absorcao, d.xau_poc);
+        formatarCard("btc", "BTCUSD (Bitcoin)", "btc", d.btc_score, d.btc_zscore, d.btc_sinal, d.btc_absorcao, d.btc_poc);
+        formatarCard("xag", "XAGUSD (Prata)", "xag", d.xag_score, d.xag_zscore, d.xag_sinal, d.xag_absorcao, d.xag_poc);
+      } catch (err) {
+        document.getElementById("status-api").textContent = "ERRO CONEXÃO";
+      }
     }
 
+    // Inicia leitura imediata + dispara 1ª análise da IA
     atualizarPainel();
-    consultarAgenteIA();
-    setInterval(atualizarPainel, 1000);
-    setInterval(consultarAgenteIA, 30000);
+    consultarAgenteIA(false);
+
+    // Atualiza métricas do Supabase a cada 2 segundos
+    setInterval(atualizarPainel, 2000);
+
+    // Contagem regressiva e disparo automático da IA a cada 60 segundos
+    setInterval(() => {
+      segundosParaProximaIA--;
+      if (segundosParaProximaIA <= 0) {
+        segundosParaProximaIA = 60;
+        consultarAgenteIA(false);
+      }
+      document.getElementById("ia-timer").textContent = `Próxima varredura IA: ${segundosParaProximaIA}s`;
+    }, 1000);
   </script>
 </body>
 </html>
